@@ -1,7 +1,7 @@
 # Source_of_power
-Simple tabletop-style turn based strategy game. (!Heavy WIP!)
+Simple tabletop-style turn based strategy game. (**!Heavy WIP!**)
 
-Pyglet is needed to run the game ('pip install pyglet' in the console/terminal)  
+Pyglet is needed to run the game (`pip install pyglet` in the console/terminal)  
 The "packages" folder only contains my own scripts for the base program.
 
 
