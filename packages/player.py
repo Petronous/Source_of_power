@@ -46,21 +46,24 @@ class Unit:
                 [self.pos, index, times])
         return tilesUsed
 
-    def CancelRequests(self, tilesUsed, plID):
-       for i in self.orders[1:]:
+    def CancelRequests(self, tilesUsed, plID, first = False):
+        if first: begin = 1
+        else: begin = 0
+        for i in self.orders[begin:]:
            if i[1] == 'move':
                x,y = i[0]
                if x in tilesUsed[y]:
-                   print(tilesUsed[y][x][0][plID])
+                   print(tilesUsed[y][x][0][plID], "SHOW TU AT UNIT POSITION")
                    for b,a in enumerate(tilesUsed[y][x][0][plID]):
                        print(a, "THE REQUEST TO BE DELETED")
                        if a[0] == self.pos: tilesUsed[y][x][0][plID].pop(b)
+        return tilesUsed
 
     #DODĚLAT!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     def cancelOthers(self, players, tilesUsed, ordersToDel, time, plID, moveUnits):
         tUs = tilesUsed[self.nowPos[1]][self.nowPos[0]]
         for i in tUs[0][plID]:
-            if i[0] != self.pos and (i[2][0] >= time or i[2][1] == 'end'):
+            if i[0] != self.pos and (i[2][1] == 'end'):
                 print(i[1], "I[1] IN CANCEL_OTHERS")
                 ordersToDel.append((i[0], i[1], plID))
                 moveUnits.append((i[0], i[1]-1, plID))
@@ -106,6 +109,7 @@ class Unit:
                                                       orderIs = [index], last = index)
         else:
             for index, i in enumerate(self.orders):
+                print('\n DOING ORDER NUMBER', index)
                 if i[1] == 'move':
                     tilesUsed, ordersToDel, go = self.doTile(players, index, i, tilesUsed,
                                                              ordersToDel, plID, moveUnits)
@@ -155,6 +159,7 @@ class Unit:
                         for u in us:
                             if u[2][0] == time or u[2][1] == 'end':
                                 tUs[0][b].pop(PosIndex((x,y), b, u[0], tilesUsed)[0])
+                                print("REQUESTING DELETE_UNIT_REQUEST", u, "OF PLAYER", b)
                                 ordersToDel.append((u[0], u[1], b))
 
                 #CHECK IF GO
@@ -166,7 +171,7 @@ class Unit:
                                 print("MY TIME", time, "ITS TIME", sTime, eTime)
                                 print(tile[0], self.pos)
                                 #index == len(self.orders)-1 means time == 'end'
-                                if (time == sTime or (eTime == 'end' and sTime < time) or (index == len(self.orders)-1 and time < sTime)) and tileIndex > otherTileIndex:
+                                if ((eTime == 'end' and sTime < time) or (index == len(self.orders)-1 and time < sTime)) and tileIndex > otherTileIndex:
                                     go = False
                                     print("NOT GO")
 
@@ -184,7 +189,7 @@ class Unit:
                     del self.orders[index:]
                     print(self.nowPos, "MY NOWPOS")
                     #Stop units from going in if orders canceled
-                    print('cancelling')
+                    print('cancelling #############################################')
                     tilesUsed, ordersToDel, moveUnits = self.cancelOthers(players, tilesUsed, ordersToDel, time, plID, moveUnits)
 
         tilesUsed[y][x] = tUs

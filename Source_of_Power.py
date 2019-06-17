@@ -1,10 +1,10 @@
-import pickle
+#import pickle
 import os.path
 import pyglet
 from weakref import ref
 from pyglet import gl
 from random import randint as rand
-import packages.player
+import packages.player as player
 #I try to use '' for single characters and "" for strings, but in the end it's somewhat random
 class MapHex:
     def FindMatch(self, index = None):
@@ -117,9 +117,11 @@ class MapHex:
         return unit
 
     def DelUnit(self, x,y, plID):
-        global mapButtons
+        global mapButton
+        print("DELETE UNIT AT", x,y)
         self.players[plID].units[y][x].sprite.delete()
         self.tilesUsed = self.players[plID].units[y][x].CancelRequests(self.tilesUsed, plID)
+        print(self.tilesUsed)
         del self.players[plID].units[y][x]
         del mapButtons[plID]['units'][y][x]
 
@@ -135,7 +137,7 @@ class MapHex:
             gl.glTexParameteri(self.bases[y][x][4]._texture.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
             gl.glTexParameteri(self.bases[y][x][4]._texture.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
             print("ADD NEW SPRITE")
-        self.players[plID].bases.append((x,y, self.bases[y][x][2]))
+        if plID != -1: self.players[plID].bases.append((x,y, self.bases[y][x][2]))
 
     def DelBase(self, x,y, plID):
         base = self.bases[y][x]
@@ -582,6 +584,8 @@ def EndTurn():
     global mapButtons
     # tile = unitPos, orderIndex, times
 
+    print("\n\n\n --- NEW TURN ---")
+
     #Processing the orders
     #Requesting the tiles
     for pl in Map.players.values():
@@ -615,9 +619,11 @@ def EndTurn():
     for row in Map.tilesUsed: print(row, "ROW OF TILES_USED")
 
     #Executing orders
+    print("#######################################################################\nPHASE ORDERS")
     for pl in Map.players.values():
         for row in pl.units:
             for unit in row.values():
+                print("\n\n-----------------------------------------------------------------------\nUNIT FROM TILE", unit.pos, "AND PLAYER", pl.ID)
                 x,y = unit.pos
                 onBase = (x in Map.bases[y] and Map.bases[y][x][1] == pl.ID)
                 #print(onBase, pl.ID)
@@ -635,6 +641,7 @@ def EndTurn():
                     unit.nowPos = unit.orders[i[1]][0]
 
     #Finishing everything + checking for health and upgrades
+    print("#######################################################################\nPHASE FINISH")
     newTilesUsed = []
     for i in Map.boundaries: newTilesUsed.append({})
     newPls = {}
@@ -645,26 +652,28 @@ def EndTurn():
         for row in pl.units:
             for unit in row.values():
                 print()
-
+                print("\n\n-----------------------------------------------------------------------\nUNIT FROM TILE", unit.pos, "AND PLAYER", pl.ID)
                 print(Map.tilesUsed, "TILES USED - CHECKING ATTACKERS")
                 for index,((x,y),type) in enumerate(unit.orders):
                     print(x,y, "ORDER POSITION")
                     if type == 'move' and x in Map.tilesUsed[y]:
+                        print("ATTACKERS OF THIS TILE", Map.tilesUsed[y][x][1].items())
                         for a,playa in Map.tilesUsed[y][x][1].items():
                             print(playa, "PLAYER ATTACKING")
                             for u in playa:
                                 xx,yy = u
                                 aUnit = Map.players[a].units[yy][xx]
+                                print("THIS IS THE 666th ROW")
                                 unit.hp -= aUnit.damage
                                 unit.attackers[a] += aUnit.damage
 
                 xx,yy = unit.nowPos
                 x,y   = unit.pos
 
+                #checking if unit upgraded
                 if unit.damage > Map.unitTypes[unit.type][4] and unit.hp <= unit.startHp:
                         unit.damage = Map.unitTypes[unit.type][4]
                         pl.resupgrades += 1
-                        print("THIS IS THE 666th ROW")
 
                 if unit.hp > 0:
                     if unit.nowPos != unit.pos:
@@ -709,7 +718,7 @@ def EndTurn():
                     del newUnits[y][x]
                     maxDmg = 0
                     plid = pl.ID
-                    print(pl.ID, "UNIT")
+                    print(pl.ID, "UNIT - LOOKING FOR MOST DAMAGE")
                     for a,i in enumerate(unit.attackers):
                         if i == maxDmg:
                             plid = pl.ID
@@ -724,7 +733,7 @@ def EndTurn():
                     onBase = xx in Map.bases[yy] and Map.bases[yy][xx][1] == pl.ID
                     if plid != pl.ID and onBase:
                         Map.DelBase(xx,yy, pl.ID)
-                        Map.NewBase(xx,yy, plid)
+                        Map.NewBase(xx,yy, -1)
         newPls[pl.ID] = newUnits
     for a,i in Map.players.items():
         i.units = newPls[a]
@@ -1108,6 +1117,7 @@ def on_mouse_release(x,y, button, modifiers):
                     if unitTypeSelected is not None and pl.ResUnByType[unitTypeSelected] > 0:
                         pl.ResUnByType[unitTypeSelected] -= 1
                         if upgrade and pl.resupgrades > 0: pl.resupgrades -= 1
+                        else: upgrade = False
                         Map.NewUnit(unitTypeSelected, mapButtonID[0], mapButtonID[1], pl.ID, upped = upgrade)
                         print("PASSED")
 
@@ -1160,8 +1170,12 @@ def on_mouse_release(x,y, button, modifiers):
                 change = True
                 if mapButtonID[2] == 'units':
                     x,y = mapButtonID[0],mapButtonID[1]
-                    pl.ResUnByType[pl.units[y][x].type] += 1
+                    unit = pl.units[y][x]
+                    pl.ResUnByType[unit.type] += 1
+                    if
+                    print(Map.tilesUsed)
                     Map.DelUnit(x,y, pl.ID)
+                    print(Map.tilesUsed)
                     unitSelected[0] = None
 
     else:
