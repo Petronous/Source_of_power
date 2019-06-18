@@ -269,7 +269,7 @@ Map.XSize = screen.width
 Map.YSize = screen.height - 0.5*tileSize
 print('SIZES', Map.XSize, Map.YSize)
 
-window = pyglet.window.Window(resizable = True)
+window = pyglet.window.Window(resizable = True, caption='Source of Power')
 window.config.alpha_size = 8
 window.activate()
 window.maximize()
@@ -642,12 +642,11 @@ def EndTurn():
             for unit in row.values():
                 print("\n\n-----------------------------------------------------------------------\nUNIT FROM TILE", unit.pos, "AND PLAYER", pl.ID)
                 x,y = unit.pos
-                onBase = (x in Map.bases[y] and Map.bases[y][x][1] == pl.ID)
                 #print(onBase, pl.ID)
-                Map.tilesUsed, ordersToDel, moveUnits = unit.doOrders(Map.players,
+                Map.tilesUsed, ordersToDel, moveUnits = unit.DoOrders(Map.players,
                                             Map.tilesUsed,
                                             pl.ID,
-                                            onBase)
+                                            Map.OnBase(x,y, pl.ID))
                 #print(ordersToDel)
                 for i in ordersToDel:
                     (x,y), oI, plID = i
@@ -747,8 +746,7 @@ def EndTurn():
                     print(plid)
                     Map.players[plid].ResUnByType[unit.type] += 1
                     xx,yy = unit.nowPos
-                    onBase = xx in Map.bases[yy] and Map.bases[yy][xx][1] == pl.ID
-                    if plid != pl.ID and onBase:
+                    if plid != pl.ID and Map.OnBase(xx,yy, pl.ID):
                         Map.DelBase(xx,yy, pl.ID)
                         Map.NewBase(xx,yy, -1)
         newPls[pl.ID] = newUnits
@@ -1185,7 +1183,7 @@ def on_mouse_release(x,y, button, modifiers):
                 if mapButtonID[2] == 'units':
                     x,y = mapButtonID[0],mapButtonID[1]
                     unit = pl.units[y][x]
-                    if OnBase(x,y, pl.ID):
+                    if Map.OnBase(x,y, pl.ID):
                         pl.ResUnByType[unit.type] += 1
                         print(Map.tilesUsed)
                         Map.DelUnit(x,y, pl.ID)
