@@ -6,3 +6,7 @@ The "packages" folder only contains my own scripts for the base program.
 
 
 I may create proper documentation if any interest is expressed
+
+
+Illustrative screenshot:
+![Three player game where the purple one almost lost](Screenshot.png)

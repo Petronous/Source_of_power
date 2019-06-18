@@ -260,7 +260,7 @@ tileYSize = 0.75
 
 
 
-Map = MapHex(5,5,5, 2, 1, 2)
+Map = MapHex(5,5,5, 3, 3, 0)
 
 platform = pyglet.window.get_platform()
 display = platform.get_default_display()
