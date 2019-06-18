@@ -1,4 +1,4 @@
-#import pickle
+import pickle
 import os.path
 import pyglet
 from weakref import ref
@@ -149,6 +149,14 @@ class MapHex:
         if (x,y,baType) in self.players[plID].bases: self.players[plID].bases.remove((x,y,baType))
         else:
             print("NO BASE FOUND NO BASE FOUND ######################################")
+
+    def OnBase(x,y,plID):
+        return (x in self.bases[y] and self.bases[y][x][1] == plID)
+
+    def Win(plID):
+        self.playerHere   = False
+        self.winningPlayer= plID
+        self.game         = False
 
     #deathCondition = "noUnits"||"noBases||noHomeBase"
     #winCondition   = "totalDomination"||"allBases"||"allSources||allHomeBases"
@@ -337,7 +345,16 @@ upgrade = False
 diffX = 0
 diffY = 0
 
-#############################################x########################################################
+cursors = {
+    "Default": window.get_system_mouse_cursor(window.CURSOR_DEFAULT),
+    "menu": window.get_system_mouse_cursor(window.CURSOR_HAND),
+    "mapS": window.get_system_mouse_cursor(window.CURSOR_HAND),
+    "bases": window.get_system_mouse_cursor(window.CURSOR_SIZE_DOWN),
+    "units": window.get_system_mouse_cursor(window.CURSOR_SIZE),
+    "moves": window.get_system_mouse_cursor(window.CURSOR_CROSSHAIR)
+}
+
+######################################################################################################
 
 
 
@@ -767,22 +784,27 @@ def EndTurn():
         del Map.players[i]
 
     #Check for win conditions
-    if len(Map.players) > 1:
+    if len(Map.players) > 1 and Map.winCondition != 'totalDomination':
             for pl in Map.players.values():
                 for base in pl.bases:
                     plBasesLeft = Map.playerNum
                     sourcesLeft = Map.sourceNum
                     if base[2] == 's':
                         sourcesLeft -= 1
-                if sourcesLeft == 0:
-                    Map.playerHere   = False
-                    Map.winningPlayer= pl.ID
-                    Map.game         = False
+                    if base[2] == 'p':
+                        plBasesLeft -= 1
+                if sourcesLeft == 0 and Map.winCondition == 'allSources':
+                    Map.Win(pl.ID)
                     break
+                elif plBasesLeft == 0 and Map.winCondition == 'allHomeBases':
+                    Map.Win(pl.ID)
+                    break
+                elif plBasesLeft == 0 and sourcesLeft == 0 and Map.winCondition == 'allBases':
+                    Map.Win(pl.ID)
+                    break
+
     else:
-        Map.playerHere   = False
-        Map.winningPlayer= list(Map.players.values())[0].ID
-        Map.game         = False
+        Map.Win(list(Map.players.values())[0].ID)
 
 
 #--------------------------------------------------------------------------------> WHICH_BUTTON BEGINS
@@ -1007,18 +1029,10 @@ def on_key_press(symbol, modifiers):
 
 @window.event #------------------------------------------------------------------------> MOUSE RELEASE
 def on_mouse_release(x,y, button, modifiers):
-    global menuButtons, menuSprites, mapButtons, buttonID, mapButtonID, unitTypeSelected, change, zoom, unitSelected, upgrade, tileBatch
+    global menuButtons, menuSprites, mapButtons, buttonID, mapButtonID, unitTypeSelected, change, zoom, unitSelected, upgrade, tileBatch, cursorsg
     if Map.playerHere:
         buttonID, mapButtonID, bType = WhichButton((x,y), menuButtons, mapButtons)
         mapButtonID.append(bType)
-        cursors = {
-            "Default": window.get_system_mouse_cursor(window.CURSOR_DEFAULT),
-            "menu": window.get_system_mouse_cursor(window.CURSOR_HAND),
-            "mapS": window.get_system_mouse_cursor(window.CURSOR_HAND),
-            "bases": window.get_system_mouse_cursor(window.CURSOR_SIZE_DOWN),
-            "units": window.get_system_mouse_cursor(window.CURSOR_SIZE),
-            "moves": window.get_system_mouse_cursor(window.CURSOR_CROSSHAIR)
-        }
         window.set_mouse_cursor(cursors[bType])
 
         pl = Map.players[Map.playerActive]
@@ -1171,12 +1185,12 @@ def on_mouse_release(x,y, button, modifiers):
                 if mapButtonID[2] == 'units':
                     x,y = mapButtonID[0],mapButtonID[1]
                     unit = pl.units[y][x]
-                    pl.ResUnByType[unit.type] += 1
-                    if
-                    print(Map.tilesUsed)
-                    Map.DelUnit(x,y, pl.ID)
-                    print(Map.tilesUsed)
-                    unitSelected[0] = None
+                    if OnBase(x,y, pl.ID):
+                        pl.ResUnByType[unit.type] += 1
+                        print(Map.tilesUsed)
+                        Map.DelUnit(x,y, pl.ID)
+                        print(Map.tilesUsed)
+                        unitSelected[0] = None
 
     else:
         Map.playerHere = True
@@ -1192,18 +1206,11 @@ def on_resize(w,h):
 
 @window.event
 def on_mouse_motion(x,y, dx,dy):
-    global menuButtons, buttonID, mapButtons, mapButtonID, bType, change
+    global menuButtons, buttonID, mapButtons, mapButtonID, bType, change, cursors
     if Map.playerHere:
         buttonID, mapButtonID, bType = WhichButton((x,y), menuButtons, mapButtons)
         mapButtonID.append(bType)
-        cursors = {
-            "Default": window.get_system_mouse_cursor(window.CURSOR_DEFAULT),
-            "menu": window.get_system_mouse_cursor(window.CURSOR_HAND),
-            "mapS": window.get_system_mouse_cursor(window.CURSOR_HAND),
-            "bases": window.get_system_mouse_cursor(window.CURSOR_SIZE_DOWN),
-            "units": window.get_system_mouse_cursor(window.CURSOR_SIZE),
-            "moves": window.get_system_mouse_cursor(window.CURSOR_CROSSHAIR)
-        }
+
         window.set_mouse_cursor(cursors[bType])
         if bType == 'units': change = True
     else:
