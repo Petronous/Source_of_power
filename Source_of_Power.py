@@ -150,10 +150,10 @@ class MapHex:
         else:
             print("NO BASE FOUND NO BASE FOUND ######################################")
 
-    def OnBase(x,y,plID):
+    def OnBase(self, x,y, plID):
         return (x in self.bases[y] and self.bases[y][x][1] == plID)
 
-    def Win(plID):
+    def Win(self, plID):
         self.playerHere   = False
         self.winningPlayer= plID
         self.game         = False
@@ -259,8 +259,8 @@ tileSize = 100
 tileYSize = 0.75
 
 
-
-Map = MapHex(5,5,5, 3, 3, 0)
+# a,b,c sources, players, upgrades
+Map = MapHex(5,5,5, 3, 2, 0)
 
 platform = pyglet.window.get_platform()
 display = platform.get_default_display()
@@ -620,10 +620,10 @@ def EndTurn():
                 if unit.orders[ordersLen-1][1] == 'move': index = ordersLen-1
                 else:                                     index = ordersLen-2
 
-                if unit.airDrop and x in Map.bases[y] and Map.bases[y][x][1] == pl.ID:
+                '''if unit.airDrop and x in Map.bases[y] and Map.bases[y][x][1] == pl.ID:
                     plIDs = [pp for pp in Map.players]
                     ox,oy = unit.orders[index][0]
-                    Map.tilesUsed = unit.MakeRequests([(ox,oy)], pl.ID, Map.tilesUsed, plIDs)
+                    Map.tilesUsed = unit.MakeRequests([(ox,oy)], pl.ID, Map.tilesUsed, plIDs)'''
 
                 tx, ty = unit.orders[index][0]
                 tile = Map.tilesUsed[ty][tx][0][pl.ID]
@@ -1170,7 +1170,7 @@ def on_mouse_release(x,y, button, modifiers):
                                 Map.tilesUsed = unit.MakeRequests([(xx,yy)], pl.ID, Map.tilesUsed, plIDs
                                     orderIs = 1, reverse = True)
                                  -= timeStep'''
-                            if not airDrop:
+                            if True:
                                 Map.tilesUsed = unit.MakeRequests([(xx,yy)], pl.ID, Map.tilesUsed, plIDs)
                         else:
                             unit.movePoints = 0

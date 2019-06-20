@@ -59,6 +59,25 @@ class Unit:
                        if a[0] == self.pos: tilesUsed[y][x][0][plID].pop(b)
         return tilesUsed
 
+    def BackOff(self, plID, order, oindex, tilesUsed):
+        tile = tilesUsed[order[0]]
+        tileIndex, inTile = PosIndex(order[0], plID, self.pos, tilesUsed)
+        if inTile: tile[0][plID].pop(tileIndex)
+        print(self.orders, "ORDERS")
+        del self.orders[oindex:]
+        print(self.nowPos, "MY NOWPOS")
+
+        pNowPos = self.orders[oindex-1][0]
+        tile = tilesUsed [pNowPos]
+        if (tile[2] != plID or MaxEndsIndex(tile[0])[plID] > 0)  and  len(self.orders) > 1:
+            self.nowPos = pNowPos
+            tilesUsed, ordersToDel, moveUnits = self.BackOff(plID, self.orders[oindex-1], oindex-1, tilesUsed)
+        else:
+            #Stop units from going in if orders canceled
+            print('cancelling #############################################')
+            tilesUsed, ordersToDel, moveUnits = self.CancelOthers(players, tilesUsed, ordersToDel, time, plID, moveUnits)
+        return tilesUsed, ordersToDel, moveUnits
+
     def CancelOthers(self, players, tilesUsed, ordersToDel, time, plID, moveUnits):
         tUs = tilesUsed[self.nowPos[1]][self.nowPos[0]]
         for i in tUs[0][plID]:
@@ -83,7 +102,7 @@ class Unit:
             time = 0
             timeStep = 1/(self.startMP + 1)
             tilesUsed, ordersToDel = self.DoTile(players, 0, (self.pos, 'move'), tilesUsed, ordersToDel, plID, time, moveUnits)'''
-        if self.airDrop and onBase:
+        '''if self.airDrop and onBase:
             toFor = list(enumerate(self.orders))
             toFor.reverse()
             plIDs = [pp for pp in players]
@@ -105,8 +124,9 @@ class Unit:
                         print("BACKING OFF")
                         x,y = self.orders[index-1][0]
                         tilesUsed = self.MakeRequests([(x,y)], plID, tilesUsed, plIDs,
-                                                      orderIs = [index], last = index)
-        else:
+                                                      orderIs = [index], last = index)'''
+        #else:
+        if True:
             for index, i in enumerate(self.orders):
                 print('\n DOING ORDER NUMBER', index)
                 if i[1] == 'move':
@@ -128,29 +148,25 @@ class Unit:
         x,y = i[0]
         xx,yy = self.pos
         print(i[0], "DESIRED POSITION")
+        # tileUsed
         tUs = tilesUsed[y][x]
         tileIndex, inTile = PosIndex(i[0], plID, self.pos, tilesUsed)
-        # tile = unitPos, orderIndex, times
-        if i[1] == 'move' and len(tUs) > 1:
+        # tile         = [moves{0: requests, 1: requests ...}, attacks{0: requests, 1: requests ...},   pl, maxx]
+        #                                                                                               ^   ^ Only added by DoTile
+        # request/unit = [unitPos, orderIndex, times]
+        if i[1] == 'move':
                 go = True
                 maxU = 0
-                pl = -1
                 print(tUs[0], "REQUESTS FOR TILE")
 
                 #FIND THE MAJORITY
-                for b,a in tUs[0].items():
-                    for tile in a:
-                        xx,yy = tile[0]
-                        if len(players[b].units[yy][xx].orders) < 2:
-                            pl = b
-                            break
-                    if len(a) > maxU:
-                        maxU = len(a)
-                        pl = b
-                        print("BIGGER", pl, maxU)
-                    elif len(a) == maxU:
-                        pl = -1
-                        print("SAME")
+                if len(tUs) == 2:
+                    pl, maxx = MaxEndsIndex(tUs[0])
+                    tUs.append(pl)
+                    tUs.append(maxx)
+                else:
+                    pl = tUs[2]
+                    maxx = tUs[3]
 
                 #DELETE THE MINORITIES
                 for b,us in tUs[0].items():
@@ -162,14 +178,14 @@ class Unit:
                                 ordersToDel.append((u[0], u[1], b))
 
                 #CHECK IF GO
+                myTime = tUs[0][plID][PosIndex(i[0], plID, self.pos, tilesUsed)[0]][2][1]
                 if len(self.orders) > 1:
-                    if pl != -1:
-                        myTime = tile[tileIndex][2][1]
-                        for otherTileIndex,tile in enumerate(tUs[0][plID]):
-                            if tile[0] != self.pos:
-                                sTime, eTime = tile[2]
+                    if pl != -1 and myTime == 'end':
+                        for otherTileIndex,unit in enumerate(tUs[0][plID]):
+                            if unit[0] != self.pos:
+                                sTime, eTime = unit[2]
                                 print("MY TIME", time, "ITS TIME", sTime, eTime)
-                                print(tile[0], self.pos)
+                                print(unit[0], self.pos)
                                 if eTime == 'end' and myTime == 'end' and tileIndex > otherTileIndex:
                                     go = False
                                     print("NOT GO!!!!!!!!!!!!!!!!")
@@ -180,16 +196,9 @@ class Unit:
 
                 #GOIN' OR NOT
                 if go: self.nowPos = [x,y]
-                else:
-                    print(tUs[0][plID], "ATTEMPTS")
-                    tileIndex, inTile = PosIndex(i[0], plID, self.pos, tilesUsed)
-                    if inTile: tUs[0][plID].pop(tileIndex)
-                    print(self.orders, "ORDERS")
-                    del self.orders[index:]
-                    print(self.nowPos, "MY NOWPOS")
-                    #Stop units from going in if orders canceled
-                    print('cancelling #############################################')
-                    tilesUsed, ordersToDel, moveUnits = self.CancelOthers(players, tilesUsed, ordersToDel, time, plID, moveUnits)
+                else: tilesUsed, ordersToDel, moveUnits = self.BackOff(plID, i, index, tilesUsed,)
+
+
 
         tilesUsed[y][x] = tUs
         return tilesUsed, ordersToDel, go
@@ -213,6 +222,22 @@ def PosIndex(tilePos, plID, unitPos, tilesUsed):
         for a,i in enumerate(plTile):
             if i[0] == unitPos: return a, True
     return -1, False
+
+def MaxEndsIndex(attempts, endsOnly = False):
+    ends = {}
+    for plID, pl in attempts.items():
+        ends[plID] = 0
+        for unit in pl:
+            if unit[2][1] == 'end': ends[plID] += 1
+
+    if endsOnly: return ends
+
+    index = -1
+    maxx  = -1
+    for plID, plends in ends.items():
+        if plends >  maxx: index = plID; maxx = plends
+        elif plends == maxx: index = -1
+    return index, maxx
 
 
 if __name__ == '__main__':
