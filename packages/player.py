@@ -60,14 +60,14 @@ class Unit:
         return tilesUsed
 
     def BackOff(self, plID, order, oindex, tilesUsed):
-        tile = tilesUsed[order[0]]
+        tile = tilesUsed[order[0][1]][order[0][0]]
         tileIndex, inTile = PosIndex(order[0], plID, self.pos, tilesUsed)
         if inTile: tile[0][plID].pop(tileIndex)
         print(self.orders, "ORDERS")
         del self.orders[oindex:]
         print(self.nowPos, "MY NOWPOS")
 
-        pNowPos = self.orders[oindex-1][0]
+        pNowPos = self.orders[max(oindex-1, 0)][0]
         tile = tilesUsed [pNowPos]
         if (tile[2] != plID or MaxEndsIndex(tile[0])[plID] > 0)  and  len(self.orders) > 1:
             self.nowPos = pNowPos
@@ -180,7 +180,7 @@ class Unit:
                 #CHECK IF GO
                 myTime = tUs[0][plID][PosIndex(i[0], plID, self.pos, tilesUsed)[0]][2][1]
                 if len(self.orders) > 1:
-                    if pl != -1 and myTime == 'end':
+                    if pl != -1 or myTime != 'end':
                         for otherTileIndex,unit in enumerate(tUs[0][plID]):
                             if unit[0] != self.pos:
                                 sTime, eTime = unit[2]
