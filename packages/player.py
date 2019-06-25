@@ -24,10 +24,11 @@ class Unit:
         gl.glTexParameteri(self.sprite._texture.target, gl.GL_TEXTURE_MAG_FILTER, gl.GL_NEAREST)
         gl.glTexParameteri(self.sprite._texture.target, gl.GL_TEXTURE_MIN_FILTER, gl.GL_NEAREST)
         self.new       = new
-        self.attackers = []
+        self.attackers = {}
 
     def MakeRequests(self, ordersPos, plID, tilesUsed, plIDs, orderIs = None, last = None):
         timeStep = 0
+        print("\nUNIT FROM", self.pos, "IS REQUESTING")
         for a,i in enumerate(ordersPos):
             xx,yy = i
             if not(xx in tilesUsed[yy]):
@@ -42,21 +43,32 @@ class Unit:
             #else:
             if last == None or index != last: times = [index, index]
             elif index == last:               times = [index, 'end']
+            print("APPENDING", [self.pos, index, times], "TO TILE AT", xx, yy)
             tilesUsed[yy][xx][0][plID].append(
                 [self.pos, index, times])
         return tilesUsed
 
-    def CancelRequests(self, tilesUsed, plID, first = False):
+    def CancelRequests(self, tilesUsed, plID, first = False, index = None):
         if first: begin = 1
         else: begin = 0
-        for i in self.orders[begin:]:
-           if i[1] == 'move':
-               x,y = i[0]
-               if x in tilesUsed[y]:
-                   print(tilesUsed[y][x][0][plID], "SHOW TU AT UNIT POSITION")
-                   for b,a in enumerate(tilesUsed[y][x][0][plID]):
-                       print(a, "THE REQUEST TO BE DELETED")
-                       if a[0] == self.pos: tilesUsed[y][x][0][plID].pop(b)
+        if index is None:
+            for i in self.orders[begin:]:
+               if i[1] == 'move':
+                   x,y = i[0]
+                   if x in tilesUsed[y]:
+                       print(tilesUsed[y][x][0][plID], "SHOW TU AT UNIT POSITION")
+                       for b,a in enumerate(tilesUsed[y][x][0][plID]):
+                           if a[0] == self.pos:
+                               print(a, "THE REQUEST TO BE DELETED")
+                               tilesUsed[y][x][0][plID].pop(b)
+        else:
+            i = self.orders[index]
+            x,y = i[0]
+            if x in tilesUsed[y]:
+                print(tilesUsed[y][x][0][plID], "SHOW TU AT UNIT POSITION")
+                for b,a in enumerate(tilesUsed[y][x][0][plID]):
+                    print(a, "THE REQUEST TO BE DELETED")
+                    if a[0] == self.pos: tilesUsed[y][x][0][plID].pop(b)
         return tilesUsed
 
     def BackOff(self, plID, order, oindex, tilesUsed):
@@ -97,7 +109,8 @@ class Unit:
         timeStep = 0
         ordersToDel = []
         moveUnits = []
-        self.attackers = [0]*len(players)
+        for pl in players:
+            self.attackers[pl] = 0
         '''if len(self.orders) < 2:
             time = 0
             timeStep = 1/(self.startMP + 1)
@@ -178,6 +191,8 @@ class Unit:
                                 ordersToDel.append((u[0], u[1], b))
 
                 #CHECK IF GO
+                print(PosIndex(i[0], plID, self.pos, tilesUsed)[0], "MY INDEX",  tUs[0][plID], "THE TILE")
+                print(tUs[0][plID][PosIndex(i[0], plID, self.pos, tilesUsed)[0]], "MY TILE")
                 myTime = tUs[0][plID][PosIndex(i[0], plID, self.pos, tilesUsed)[0]][2][1]
                 if len(self.orders) > 1:
                     if pl != -1 or myTime != 'end':

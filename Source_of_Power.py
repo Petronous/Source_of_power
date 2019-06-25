@@ -277,7 +277,7 @@ tileYSize = 0.75
 
 
 # a,b,c sources, players, upgrades
-Map = MapHex(5,5,5, 3, 2, 0)
+Map = MapHex(5,3,3, 3, 2, 0)
 
 platform = pyglet.window.get_platform()
 display = platform.get_default_display()
@@ -637,13 +637,19 @@ def EndTurn():
                 print(unit.pos,  "UNIT POSITION")
                 print(unit.damage, "UNIT DAMAGE")
                 unit.sprite.color = (255,255,255)
-                unit.new = False
+
+                tile = Map.tilesUsed[unit.pos[1]][unit.pos[0]][0][pl.ID]
+                print(tile, "THE TILE OF MY PLAYER")
+                if len(tile) == 0 or tile[0][0] != unit.pos:
+                    tile.insert(0, [unit.pos, 0, [0,0]])
 
                 ordersToDel = []
                 for a,order in enumerate(unit.orders):
                     if len(order) > 2:
                         ordersToDel.append(a)
                 for a in ordersToDel:
+                    print("-------------------Cancelling order number", a)
+                    unit.CancelRequests(Map.tilesUsed, pl.ID, index = a)
                     del unit.orders[a]
 
                 time = 0
@@ -727,6 +733,7 @@ def EndTurn():
 
                 if unit.hp > 0:
                     if unit.nowPos != unit.pos:
+                        unit.new = False
                         print("\n", unit.hp , "GOIN' SOMEWHERE HERE", unit.nowPos)
                         #print(pl.units, "BEFORE")
                         xx,yy = unit.nowPos
@@ -769,7 +776,7 @@ def EndTurn():
                     maxDmg = 0
                     plid = pl.ID
                     print(pl.ID, "UNIT - LOOKING FOR MOST DAMAGE")
-                    for a,i in enumerate(unit.attackers):
+                    for a,i in unit.attackers.items():
                         if i == maxDmg:
                             plid = pl.ID
                             print("INDEX", a, "SAME", i)
@@ -781,6 +788,7 @@ def EndTurn():
                     Map.players[plid].ResUnByType[unit.type] += 1
                     xx,yy = unit.nowPos
                     if plid != pl.ID and Map.OnBase(xx,yy, pl.ID):
+                        print("EMPTYING BASE")
                         Map.DelBase(xx,yy, pl.ID)
                         Map.NewBase(xx,yy, -1)
         newPls[pl.ID] = newUnits
@@ -857,14 +865,15 @@ def WhichButton(mpos, buttons, mapButtons):
         for a,i in buttons['gameSetup'].items():
             if ((mpos[0] > i[0]) and (mpos[1] > i[1]))  and  ((mpos[0] < i[2]) and (mpos[1] < i[3])): return  a,[-1,-1], 'mapS'
 
-    if len(mapButtons) > 1 and y > -1 and y < len(Map.boundaries):
-        if y in mapButtons['moves'] and x in mapButtons['moves'][y]: return -1, [x,y], 'moves'
-        if x in mapButtons[Map.playerActive]['units'][y]: return -1, [x,y], 'units'
-        if x in mapButtons[Map.playerActive]['bases'][y]: return -1, [x,y], 'bases'
-    #print(Map.turnNum)
-    if Map.turnNum == 0:
-        if x in Map.bases[y]: return -1, [x,y], 'building'
-        if y > -1 and y < len(Map.boundaries) and x >= Map.boundaries[y][0] and x <= Map.boundaries[y][1]: return -1, [x,y], 'tile'
+    if y > -1 and y < len(Map.boundaries):
+        if len(mapButtons) > 1:
+            if y in mapButtons['moves'] and x in mapButtons['moves'][y]: return -1, [x,y], 'moves'
+            if x in mapButtons[Map.playerActive]['units'][y]: return -1, [x,y], 'units'
+            if x in mapButtons[Map.playerActive]['bases'][y]: return -1, [x,y], 'bases'
+            #print(Map.turnNum)
+            if Map.turnNum == 0 :
+                if x in Map.bases[y]: return -1, [x,y], 'building'
+                if x >= Map.boundaries[y][0] and x <= Map.boundaries[y][1]: return -1, [x,y], 'tile'
 
     return -1,[x,y], 'Default'
 
