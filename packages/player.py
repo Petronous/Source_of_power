@@ -230,10 +230,10 @@ class Player:
         self.resupgrades = resUpgrades
         self.color       = color
 
-def PosIndex(tilePos, plID, unitPos, tilesUsed):
+def PosIndex(tilePos, plID, unitPos, tilesUsed, type = 0):
     x,y = tilePos
     if x in tilesUsed[y]:
-        plTile = tilesUsed[y][x][0][plID]
+        plTile = tilesUsed[y][x][type][plID]
         for a,i in enumerate(plTile):
             if i[0] == unitPos: return a, True
     return -1, False

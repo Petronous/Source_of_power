@@ -160,6 +160,15 @@ class MapHex:
 
     def DelPlayer(self, plID):
         pl = self.players[plID]
+        for row in pl.units:
+            for unit in row.values():
+                for order in unit.orders:
+                    pos = order[0]
+                    if order[1] == 'move': type = 0
+                    else: type = 1
+                    result = player.PosIndex(pos, plID, unit.pos, self.tilesUsed, type = type)
+                    if result[1]:
+                        del self.tilesUsed[pos[0]][pos[1]][type][plID][result[0]]
         for base in pl.bases:
             x,y = base[:2]
             self.bases[y][x][1] = -1
@@ -168,6 +177,13 @@ class MapHex:
             x = int(x)
             self.tileSprites[y][x].color = (255,255,255)
         del self.players[plID]
+
+        if plID = self.maxPlID:
+            newMax = 0
+            for i in self.players:
+                if i > newMax and i != plID: newMax = i
+            self.maxPlID = newMax
+
 
     def NewPlayer(self, x,y, ID = None):
         if ID is None:
@@ -192,7 +208,6 @@ class MapHex:
         self.winCondition  = winCondition
         self.winningPlayer = None
         self.tilesUsed    = tilesUsed
-        self.playerNum   = playerNum
         self.boundaries  = []
         self.bases       = []
         self.turnNum     = 0
@@ -209,6 +224,8 @@ class MapHex:
         right         = b/2 + a-1
         self.tileNum  = a
         self.tiles    = []
+        self.prevOrders = []
+        self.maxPlID  = playerNum
         for i in range(b+c):
             self.boundaries.append((left, right))
             self.tiles.append(int(self.tileNum))
@@ -231,9 +248,12 @@ class MapHex:
 
         for i in self.tiles: self.bases.append({})
 
-        self.playerNum = min(self.tileNum, playerNum)
-        self.sourceNum = min(self.tileNum-playerNum, sourceNum)
-        self.upNum = min(self.tileNum - playerNum - sourceNum, upNum)
+        playerNum = min(self.tileNum, playerNum)
+        self.playerNum = playerNum
+        sourceNum = min(self.tileNum - playerNum, sourceNum)
+        self.sourceNum = sourceNum
+        upNum = min(self.tileNum - playerNum - sourceNum, upNum)
+        self.upNum = upNum
         if generate:
             for i in self.boundaries:
                 tilesUsed.append({})
@@ -360,6 +380,7 @@ buttonID    = -1
 mapButtonID = -1
 bType       = None
 baseType    = 's'
+showPrevOrders = True
 
 unitTypeSelected = None
 unitSelected= [None, 'move']
@@ -387,7 +408,7 @@ cursors = {
 ######################################################################################################
 
 def DrawUI(height, width): #---------------------------------------------------------> DRAW_UI BEGINS
-    global UIBatch, menuSprites, menuButtons, mapButtons, unitTypeSelected, unitSelected, tileSize, upgrade, playerColorSprite, mapButtonID
+    global showPrevOrders, UIBatch, menuSprites, menuButtons, mapButtons, unitTypeSelected, unitSelected, tileSize, upgrade, playerColorSprite, mapButtonID
     if mapButtonID != -1: bType = mapButtonID[2]
     shapesBatch = pyglet.graphics.Batch()
     shapesBatch.add(4, pyglet.gl.GL_QUADS, None,
@@ -588,38 +609,64 @@ def DrawUI(height, width): #----------------------------------------------------
         for row in plA.units:
             for unit in row.values():
                 if unit.orders != []:
-                    x,y = unit.pos
-
-                    verts = [int((x+0.5)*tileSize) + camX, int((y+0.5)*tileSize*tileYSize) + camY]
-                    indices = [0]
-                    color = [200,255,200]
-                    for a,i in enumerate(unit.orders):
-                        x,y = i[0]
-                        verts.extend((int((x+0.5)*tileSize) + camX, int((y+0.5)*tileSize*tileYSize) + camY))
-                        if i[1] == 'move': color.extend((200,255,200))
-                        else: color.extend((255,100,100))
-                        if a < len(unit.orders) - 1: indices.extend((a+1,a+1))
-                        else: indices.append(a+1)
-
-                    # print(indices, 'INDEXS')
-                    # print(verts, 'VERTEXS')
-                    # print(len(unit.orders)+1, 'LEN')
+                    width = 2
                     x,y = unit.pos
                     if bType == 'units':
                         x1,y1 = mapButtonID[0:2]
-                        if (x,y) == (x1,y1): gl.glLineWidth(4)
-                        pyglet.graphics.draw_indexed(len(unit.orders)+1, pyglet.gl.GL_LINES,
-                                                     indices, ("v2i", verts), ("c3B", color))
-                        gl.glLineWidth(1)
-                    else: shapesBatch.add_indexed(len(unit.orders)+1, pyglet.gl.GL_LINES, None,
-                                                  indices, ("v2i", verts), ("c3B", color))
+                        if (x,y) == (x1,y1): width = 4
+                    DrawOrders(unit.orders, width, (100,255,200), (255,100,100))
 
+        #draw previous orders
+        if showPrevOrders:
+            for unit in Map.prevOrders:
+                width = 2
+                x,y = unit[0][0]
+                if bType == 'units' or bType == 'otherUnits':
+                    x1,y1 = mapButtonID[0:2]
+                    if (x,y) == (x1,y1): width = 4
+                DrawOrders(unit[:len(unit)-1], width, (150,150,255), (200,75,75), offset = (0.25, -0.1), markers = True, alive = unit[len(unit)-1])
 
     return shapesBatch
 #  _______
 # /      /                                                                            / / /
 #<------<---------------------------------------------------------------------------<-<-< DRAW_UI ENDS
 # \______\                                                                            \ \ \
+
+def DrawOrders(orders, width, moveColor, attackColor, offset = (0,0), markers = False, alive = True):
+    verts = []
+    indices = []
+    colors = []
+    for a,i in enumerate(orders):
+        x,y = i[0]
+        verts.extend((int((x+0.5+offset[0])*tileSize) + camX, int((y+0.5+offset[1])*tileSize*tileYSize) + camY))
+        if i[1] == 'move': colors.extend((moveColor))
+        else: colors.extend((attackColor))
+        if a < len(orders) - 1 and a > 0: indices.extend((a,a))
+        else: indices.append(a)
+
+    if markers:
+        #draw start pos
+        x,y = orders[0][0]
+        verts.extend((int((x+0.5+offset[0])*tileSize) + camX, int((y+0.5+offset[1])*tileSize*tileYSize) + camY))
+        colors.extend(100,255,100)
+        indices.extend(a+1,a+1)
+
+        #draw end pos if dead
+        if not alive:
+            index = len(orders)-1
+            if orders[index][1] == 'attack': index -= 1
+            x,y = orders[index][0]
+            verts.extend((int((x+0.5+offset[0])*tileSize) + camX, int((y+0.5+offset[1])*tileSize*tileYSize) + camY))
+            colors.extend(255,100,100)
+            indices.extend(a+2,a+2)
+
+    # print(indices, 'INDEXS')
+    # print(verts, 'VERTEXS')
+    # print(len(unit.orders)+1, 'LEN')
+    gl.glLineWidth(width)
+    pyglet.graphics.draw_indexed(len(orders), pyglet.gl.GL_LINES,
+                                 indices, ("v2i", verts), ("c3B", colors))
+    gl.glLineWidth(1)
 
 #------------------------------------------------------------------------------------> END_TURN BEGINS
 def EndTurn():
@@ -630,6 +677,7 @@ def EndTurn():
 
     #Processing the orders
     #Requesting the tiles
+    Map.prevOrders = []
     for pl in Map.players.values():
         for row in pl.units:
             for unit in row.values():
@@ -731,6 +779,7 @@ def EndTurn():
                         unit.damage = Map.unitTypes[unit.type][4]
                         pl.resupgrades += 1
 
+                Map.prevOrders.append(unit.orders + [bool(unit.hp)])
                 if unit.hp > 0:
                     if unit.nowPos != unit.pos:
                         unit.new = False
@@ -868,12 +917,16 @@ def WhichButton(mpos, buttons, mapButtons):
     if y > -1 and y < len(Map.boundaries):
         if len(mapButtons) > 1:
             if y in mapButtons['moves'] and x in mapButtons['moves'][y]: return -1, [x,y], 'moves'
-            if x in mapButtons[Map.playerActive]['units'][y]: return -1, [x,y], 'units'
-            if x in mapButtons[Map.playerActive]['bases'][y]: return -1, [x,y], 'bases'
+            for plID,pl in mapButtons.items():
+                if plID == Map.playerActive:
+                    if x in pl['units'][y]: return -1, [x,y], 'units'
+                    if x in pl['bases'][y]: return -1, [x,y], 'bases'
+                elif plID in Map.players and x in pl['units'][y] and not(Map.players[plID].units[y][x].new): return -1, [x,y], 'otherUnits'
             #print(Map.turnNum)
-            if Map.turnNum == 0 :
-                if x in Map.bases[y]: return -1, [x,y], 'building'
-                if x >= Map.boundaries[y][0] and x <= Map.boundaries[y][1]: return -1, [x,y], 'tile'
+
+        if Map.turnNum == 0 :
+            if x in Map.bases[y]: return -1, [x,y], 'building'
+            if x >= Map.boundaries[y][0] and x <= Map.boundaries[y][1]: return -1, [x,y], 'tile'
 
     return -1,[x,y], 'Default'
 
@@ -989,7 +1042,7 @@ def InitMapButtons():
     return mapButtons
 
 def SyncPlayerActive(playerActive, players):
-    while playerActive not in players and playerActive <= list(players.values())[len(players)-1].ID:
+    while playerActive not in players and playerActive <= Map.maxPlID:
         print("INCREASING")
         playerActive += 1
     return playerActive
@@ -1054,7 +1107,7 @@ def on_draw():
 
 @window.event #----------------------------------------------------------------------------> KEY PRESS
 def on_key_press(symbol, modifiers):
-    global unitTypeSelected, unitSelected, change, mapButtons, baseType
+    global showPrevOrders, unitTypeSelected, unitSelected, change, mapButtons, baseType
     key = pyglet.window.key
 
     if symbol == key.ESCAPE:
@@ -1066,6 +1119,7 @@ def on_key_press(symbol, modifiers):
         mapButtons['moves'] = {}
         unitSelected = [None, "move"]
         change = True
+        showPrevOrders = False
 
     if symbol == key.U: baseType = 'u'
     if symbol == key.P: baseType = 'p'
@@ -1084,7 +1138,7 @@ def on_key_press(symbol, modifiers):
 
 @window.event #------------------------------------------------------------------------> MOUSE RELEASE
 def on_mouse_release(x,y, button, modifiers):
-    global menuButtons, menuSprites, mapButtons, buttonID, mapButtonID, unitTypeSelected, change, zoom, unitSelected, upgrade, tileBatch, cursors, baseType, zoom
+    global showPrevOrders, menuButtons, menuSprites, mapButtons, buttonID, mapButtonID, unitTypeSelected, change, zoom, unitSelected, upgrade, tileBatch, cursors, baseType, zoom
     if Map.playerHere:
         buttonID, mapButtonID, bType = WhichButton((x,y), menuButtons, mapButtons)
         mapButtonID.append(bType)
@@ -1104,7 +1158,7 @@ def on_mouse_release(x,y, button, modifiers):
                         with open("Autosave.pickle", 'wb') as autosave:
                             bases, players, tiles = Simplify(Map.bases, Map.players, Map.tileSprites)
                             toSaveDict = {'bases': bases, 'players': players, 'tiles': tiles,
-                            'other': [0, Map.turnNum, Map.sides, Map.winCondition, Map.deathCondition, Map.tilesUsed]}
+                            'other': [0, Map.turnNum, Map.sides, Map.winCondition, Map.deathCondition, Map.tilesUsed, Map.prevOrders]}
                             pickle.dump(toSaveDict, autosave)
 
                         if Map.turnNum > 0: EndTurn()
@@ -1112,6 +1166,7 @@ def on_mouse_release(x,y, button, modifiers):
                     else:
                         Map.playerActive += 1
                         Map.playerActive = SyncPlayerActive(Map.playerActive, Map.players)
+                    showPrevOrders = True
                     Map.playerHere = False
                     unitTypeSelected = None
                     mapButtons['moves'] = {}
@@ -1154,7 +1209,7 @@ def on_mouse_release(x,y, button, modifiers):
                         with open("Autosave.pickle", 'rb') as autosave:
                             autosave  = pickle.load(autosave)
                             print(autosave)
-                            bases, players, (playerActive, turnNum, (a,b,c), winCon, deathCon, tilesUsed) = autosave['bases'], autosave['players'], autosave['other']
+                            bases, players, (playerActive, turnNum, (a,b,c), winCon, deathCon, tilesUsed, prevOrders) = autosave['bases'], autosave['players'], autosave['other']
                             if 'tiles' in autosave: tiles = autosave['tiles']
                             else: tiles = None
                             print(bases, "BASES HEY")
@@ -1167,8 +1222,13 @@ def on_mouse_release(x,y, button, modifiers):
                                 players = Desimplify(players)
                                 Map.bases, Map.players, Map.playerActive, Map.turnNum = bases, players, playerActive, turnNum
 
-                                Map.playerActive      = SyncPlayerActive(Map.playerActive, Map.players)
-                                Map.XSize,Map.YSize     = w,h
+                                newMax = 0
+                                for i in self.players:
+                                    if i > newMax and i != plID: newMax = i
+                                Map.maxPlID = newMax
+                                Map.prevOrders      = prevOrders
+                                Map.playerActive    = SyncPlayerActive(Map.playerActive, Map.players)
+                                Map.XSize,Map.YSize = w,h
                                 if turnNum > 0: mapButtons= InitMapButtons()
                                 MakeBaseSprites(tileSprites = tiles)
                             change = True
