@@ -83,4 +83,6 @@ Unit that doesn't move during the turn cancels all other *stay-there* requests o
 In the case when unit's *stay-there* request gets canceled: The unit will fall back until it either stands on an empty tile or returns to its original position, where it will cancel all other *stay-there*s, forcing them to fall back as well.
 
 ##### Attack orders:
-Each time an attack order is issued, the unit marks the target tile 
+Units will fire on the ordered **tile** if they'll be able to get to the firing position (last *move* order).
+
+Now we focus on the **tile** part: Attacks in this game work like if the tile was under continuous fire through the whole turn, so every unit that starts, ends, moves or everything at once on/through *this* tile will receive full damage, no matter for how short of a timespan it was there.
