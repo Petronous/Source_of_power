@@ -10,13 +10,13 @@ The game features three unique unit types made to counter each other naturally:
 - Artillery: Low hp, but two tiles of range so it can destroy enemies from afar
 - Infantry: Low hp, but double movement speed and dropoff ability to let it sneak behind enemy lines and destroy weaker targets
 
-Source of Power is unique by its 
+Source of Power is unique by its
 - Unit reserve system: You can send more troops everytime you destroy enemies' units. This enables for interesting exchange strategies.
 - All units move at the same time: Players only issue orders, which are all evaluated at the end of the turn. No player gets an advantage by being first. For the exact algorithm, please look at **Unit movement** in **Quick manual**.
 
 Pyglet is needed to run the game (`pip install pyglet` in the console/terminal)  
 The "packages" folder only contains my own scripts for the base program.
- 
+
 
 I may make a proper documentation if any interest is expressed
 
