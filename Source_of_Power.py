@@ -125,6 +125,18 @@ class MapHex:
         del self.players[plID].units[y][x]
         del mapButtons[plID]['units'][y][x]
 
+    def NewBuilding(self, x,y, plID, type):
+        self.bases[y][x] = [x, plID, type]
+        if type == 's': self.sourceNum += 1
+        if type == 'u': self.upNum +=1
+
+    def DelBuilding(self, x,y, decreaseNum = True):
+        base = self.bases[y][x]
+        type = base[2]
+        if type == 's': self.sourceNum -= 1
+        if decreaseNum and type == 'u': self.upNum -= 1
+        if len(base) >= 4 and base[3] is not None: base[3].delete()
+        del self.bases[y][x]
 
     def NewBase(self, x,y, plID):
         global buildingImages, tileSize, camX, camY, UIBatch
@@ -158,7 +170,7 @@ class MapHex:
         self.winningPlayer= plID
         self.game         = False
 
-    def DelPlayer(self, plID):
+    def DelPlayer(self, plID, redoIDs = False):
         pl = self.players[plID]
         for row in pl.units:
             for unit in row.values():
@@ -178,25 +190,63 @@ class MapHex:
             self.tileSprites[y][x].color = (255,255,255)
         del self.players[plID]
 
-        if plID = self.maxPlID:
+        if redoIDs: self.RedoIDs()
+        elif plID == self.maxPlID:
             newMax = 0
             for i in self.players:
                 if i > newMax and i != plID: newMax = i
             self.maxPlID = newMax
 
 
-    def NewPlayer(self, x,y, ID = None):
+    def NewPlayer(self, x,y, ID = None, upPlNum = False):
         if ID is None:
             ID = 0
             while ID in self.players: ID += 1
-        self.bases[y][x] = [x, ID, 'p']
+        self.NewBuilding(x,y, ID, 'p')
         units = []
         for i in range(0, len(self.boundaries)):
             units.append({})
         #resUn = []
         #for i in self.unitTypes:
         #    resUn.append(i)
+        if upPlNum: self.playerNum += 1
         self.players[ID] = player.Player(ID, [(x,y, 'p')], [6]*len(self.unitTypes), (rand(80,255),rand(80,255),rand(80,255)), units)
+
+    def RedoIDs(self):
+        newMax = len(self.players)-1
+        na = 0
+        np = {}
+        idPairs = {}
+        for a,i in sorted(list(self.players.items())):
+            idPairs[a] = na
+            i.ID = na
+            np[na] = i
+            na += 1
+        self.UpdateBaseIDs(idPairs)
+        self.players = np
+        self.maxPlID = newMax
+
+    def UpdateBaseIDs(self, idPairs):
+        for row in self.bases:
+            for base in row.values():
+                try:
+                    if base[1] in idPairs: base[1] = idPairs[base[1]]
+                except TypeError:
+                    print('ERROR OF TYPE')
+                    print(base)
+                    print(row)
+                    print(idPairs)
+                    pyglet.app.exit()
+
+    def UpdateTilesUsedIDs(self, idPairs):
+        for row in self.tilesUsed:
+            for tile in row.values():
+                for mode in tile:
+                    nps = {}
+                    for id, player in list(mode.items()):
+                        nps[idPairs[id]] = player
+                    mode = nps
+
 
     #deathCondition = "noUnits"||"noBases||noHomeBase"
     #winCondition   = "totalDomination"||"allBases"||"allSources||allHomeBases"
@@ -299,8 +349,8 @@ tileYSize = 0.75
 # a,b,c sources, players, upgrades
 Map = MapHex(5,3,3, 3, 2, 0)
 
-platform = pyglet.window.get_platform()
-display = platform.get_default_display()
+#platform = pyglet.window.get_platform()
+display = pyglet.canvas.get_display()
 screen = display.get_default_screen()
 Map.XSize = screen.width
 Map.YSize = screen.height - 0.5*tileSize
@@ -393,6 +443,7 @@ cursors = {
     "Default": window.get_system_mouse_cursor(window.CURSOR_DEFAULT),
     "building": window.get_system_mouse_cursor(window.CURSOR_DEFAULT),
     "tile": window.get_system_mouse_cursor(window.CURSOR_DEFAULT),
+    "otherUnits": window.get_system_mouse_cursor(window.CURSOR_DEFAULT),
     "menu": window.get_system_mouse_cursor(window.CURSOR_HAND),
     "mapS": window.get_system_mouse_cursor(window.CURSOR_HAND),
     "bases": window.get_system_mouse_cursor(window.CURSOR_SIZE_DOWN),
@@ -648,8 +699,8 @@ def DrawOrders(orders, width, moveColor, attackColor, offset = (0,0), markers = 
         #draw start pos
         x,y = orders[0][0]
         verts.extend((int((x+0.5+offset[0])*tileSize) + camX, int((y+0.5+offset[1])*tileSize*tileYSize) + camY))
-        colors.extend(100,255,100)
-        indices.extend(a+1,a+1)
+        colors.extend((100,255,100))
+        indices.extend((a+1,a+1))
 
         #draw end pos if dead
         if not alive:
@@ -657,14 +708,14 @@ def DrawOrders(orders, width, moveColor, attackColor, offset = (0,0), markers = 
             if orders[index][1] == 'attack': index -= 1
             x,y = orders[index][0]
             verts.extend((int((x+0.5+offset[0])*tileSize) + camX, int((y+0.5+offset[1])*tileSize*tileYSize) + camY))
-            colors.extend(255,100,100)
-            indices.extend(a+2,a+2)
+            colors.extend((255,100,100))
+            indices.extend((a+2,a+2))
 
     # print(indices, 'INDEXS')
     # print(verts, 'VERTEXS')
     # print(len(unit.orders)+1, 'LEN')
     gl.glLineWidth(width)
-    pyglet.graphics.draw_indexed(len(orders), pyglet.gl.GL_LINES,
+    pyglet.graphics.draw_indexed(len(verts)//2, pyglet.gl.GL_LINES,
                                  indices, ("v2i", verts), ("c3B", colors))
     gl.glLineWidth(1)
 
@@ -738,6 +789,7 @@ def EndTurn():
                 #print(ordersToDel)
                 for i in ordersToDel:
                     (x,y), oI, plID = i
+                    print("DELETE ORDERS OF UNIT AT", x, y, "STARTING AT INDEX", oI, "OF PLAYER", plID)
                     del Map.players[plID].units[y][x].orders[oI:]
                 #print(moveUnits)
                 for i in moveUnits:
@@ -767,19 +819,19 @@ def EndTurn():
                             for u in playa:
                                 xx,yy = u
                                 aUnit = Map.players[a].units[yy][xx]
-                                print("THIS IS THE 666th ROW")
                                 unit.hp -= aUnit.damage
                                 unit.attackers[a] += aUnit.damage
 
                 xx,yy = unit.nowPos
                 x,y   = unit.pos
 
-                #checking if unit upgraded
+                #checking if unit should be downgraded
                 if unit.damage > Map.unitTypes[unit.type][4] and unit.hp <= unit.startHp:
                         unit.damage = Map.unitTypes[unit.type][4]
                         pl.resupgrades += 1
 
                 Map.prevOrders.append(unit.orders + [bool(unit.hp)])
+                print(unit.orders, "MY ORDERS")
                 if unit.hp > 0:
                     if unit.nowPos != unit.pos:
                         unit.new = False
@@ -792,7 +844,9 @@ def EndTurn():
                         print(newUnits, "AFTER")
                         if newUnits == pl.units: print("ALERT")
                     else: xx,yy = x,y
+                    newUnits[yy][xx] = unit
                     unit = newUnits[yy][xx]
+                    print(newUnits[yy][xx].pos)
                     if xx in Map.bases[yy]:
                         base = Map.bases[yy][xx]
                         if base[1] != pl.ID:
@@ -800,8 +854,8 @@ def EndTurn():
                                 if unit.hp <= unit.startHp:
                                     unit.hp = unit.startHp*2
                                     unit.damage = Map.unitTypes[unit.type][4] * 2
-                                    Map.bases[yy][xx][3].delete()
-                                    del Map.bases[yy][xx]
+                                    #Map.bases[yy][xx][3].delete()
+                                    Map.DelBuilding(x,y, decreaseNum = False)
                             elif unit.movePoints == unit.startMP:
                                 otherPlID = Map.bases[yy][xx][1]
                                 if otherPlID != -1: Map.DelBase(xx,yy, otherPlID)
@@ -871,6 +925,8 @@ def EndTurn():
                 toDel.append(pl.ID)
     for i in toDel:
         Map.DelPlayer(i)
+
+    Map.RedoIDs()
 
     #Check for win conditions
     if len(Map.players) > 1 and Map.winCondition != 'totalDomination':
@@ -1102,7 +1158,7 @@ def on_draw():
     if zoom: zframe = 0
     elif zframe < 3: zframe += 1
     zoom = False
-    pyglet.clock.set_fps_limit(15)
+    pyglet.clock.MIN_SLEEP = 0.033
     pyglet.clock.tick()
 
 @window.event #----------------------------------------------------------------------------> KEY PRESS
@@ -1111,9 +1167,8 @@ def on_key_press(symbol, modifiers):
     key = pyglet.window.key
 
     if symbol == key.ESCAPE:
-        print('CLOSING')
-        #pyglet.app.exit()
-        #quit()
+        print('NOT CLOSING')
+        return pyglet.event.EVENT_HANDLED
     if symbol == key.SPACE:
         unitTypeSelected = None
         mapButtons['moves'] = {}
@@ -1223,8 +1278,8 @@ def on_mouse_release(x,y, button, modifiers):
                                 Map.bases, Map.players, Map.playerActive, Map.turnNum = bases, players, playerActive, turnNum
 
                                 newMax = 0
-                                for i in self.players:
-                                    if i > newMax and i != plID: newMax = i
+                                for i in Map.players:
+                                    if i > newMax: newMax = i
                                 Map.maxPlID = newMax
                                 Map.prevOrders      = prevOrders
                                 Map.playerActive    = SyncPlayerActive(Map.playerActive, Map.players)
@@ -1301,9 +1356,10 @@ def on_mouse_release(x,y, button, modifiers):
                 if Map.turnNum == 0:
                     if mapButtonID[2] == 'tile':
                         if baseType == 'p':
-                            Map.NewPlayer(x,y)
+                            Map.NewPlayer(x,y) ##MAKING NEW PLAYER
                         else:
-                            Map.bases[y][x] = [x, -1, baseType]
+
+                            Map.NewBuilding(x,y, -1, baseType)
                         MakeBaseSprite(x,y)
                         print(Map.bases[y][x], )
 
@@ -1313,7 +1369,7 @@ def on_mouse_release(x,y, button, modifiers):
                 change = True
                 if mapButtonID[2] == 'units':
                     unit = pl.units[y][x]
-                    if Map.OnBase(x,y, pl.ID):
+                    if Map.OnBase(x,y, pl.ID) and unit.new:
                         pl.ResUnByType[unit.type] += 1
                         print(Map.tilesUsed)
                         Map.DelUnit(x,y, pl.ID)
@@ -1325,11 +1381,11 @@ def on_mouse_release(x,y, button, modifiers):
                     base = Map.bases[y][x]
                     if base[2] != 'p' or len(Map.players) > 1:
                         if base[2] == 'p':
-                                if base[1] == Map.playerActive:
-                                    Map.playerActive = SyncPlayerActive(Map.playerActive + 1, Map.players)
-                                Map.DelPlayer(base[1])
-                        base[3].delete()
-                        del Map.bases[y][x]
+                            Map.DelPlayer(base[1], redoIDs = True)
+                            Map.playerActive = 0
+                        #base[3].delete()
+
+                    Map.DelBuilding(x,y)
 
     else:
         Map.playerHere = True

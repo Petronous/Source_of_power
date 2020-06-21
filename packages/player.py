@@ -71,7 +71,7 @@ class Unit:
                     if a[0] == self.pos: tilesUsed[y][x][0][plID].pop(b)
         return tilesUsed
 
-    def BackOff(self, plID, order, oindex, tilesUsed):
+    def BackOff(self, plID, order, oindex, tilesUsed, players, ordersToDel, moveUnits):
         tile = tilesUsed[order[0][1]][order[0][0]]
         tileIndex, inTile = PosIndex(order[0], plID, self.pos, tilesUsed)
         if inTile: tile[0][plID].pop(tileIndex)
@@ -80,17 +80,17 @@ class Unit:
         print(self.nowPos, "MY NOWPOS")
 
         pNowPos = self.orders[max(oindex-1, 0)][0]
-        tile = tilesUsed [pNowPos]
+        tile = tilesUsed [pNowPos[1]][pNowPos[0]]
         if (tile[2] != plID or MaxEndsIndex(tile[0])[plID] > 0)  and  len(self.orders) > 1:
             self.nowPos = pNowPos
-            tilesUsed, ordersToDel, moveUnits = self.BackOff(plID, self.orders[oindex-1], oindex-1, tilesUsed)
+            tilesUsed, ordersToDel, moveUnits = self.BackOff(plID, self.orders[oindex-1], oindex-1, tilesUsed, players, ordersToDel, moveUnits)
         else:
             #Stop units from going in if orders canceled
             print('cancelling #############################################')
-            tilesUsed, ordersToDel, moveUnits = self.CancelOthers(players, tilesUsed, ordersToDel, time, plID, moveUnits)
+            tilesUsed, ordersToDel, moveUnits = self.CancelOthers(players, tilesUsed, ordersToDel, plID, moveUnits)
         return tilesUsed, ordersToDel, moveUnits
 
-    def CancelOthers(self, players, tilesUsed, ordersToDel, time, plID, moveUnits):
+    def CancelOthers(self, players, tilesUsed, ordersToDel, plID, moveUnits):
         tUs = tilesUsed[self.nowPos[1]][self.nowPos[0]]
         for i in tUs[0][plID]:
             if i[0] != self.pos and (i[2][1] == 'end'):
@@ -99,7 +99,7 @@ class Unit:
                 moveUnits.append((i[0], i[1]-1, plID))
                 targetUnit = players[plID].units[i[0][1]][i[0][0]]
                 targetUnit.nowPos = targetUnit.orders[i[1]-1][0]
-                tilesUsed, ordersToDel, moveUnits = targetUnit.CancelOthers(players, tilesUsed, ordersToDel, i[1]-1, plID, moveUnits)
+                tilesUsed, ordersToDel, moveUnits = targetUnit.CancelOthers(players, tilesUsed, ordersToDel, plID, moveUnits)
 
         return tilesUsed, ordersToDel, moveUnits
 
@@ -191,27 +191,30 @@ class Unit:
                                 ordersToDel.append((u[0], u[1], b))
 
                 #CHECK IF GO
-                print(PosIndex(i[0], plID, self.pos, tilesUsed)[0], "MY INDEX",  tUs[0][plID], "THE TILE")
-                print(tUs[0][plID][PosIndex(i[0], plID, self.pos, tilesUsed)[0]], "MY TILE")
-                myTime = tUs[0][plID][PosIndex(i[0], plID, self.pos, tilesUsed)[0]][2][1]
-                if len(self.orders) > 1:
-                    if pl != -1 or myTime != 'end':
-                        for otherTileIndex,unit in enumerate(tUs[0][plID]):
-                            if unit[0] != self.pos:
-                                sTime, eTime = unit[2]
-                                print("MY TIME", time, "ITS TIME", sTime, eTime)
-                                print(unit[0], self.pos)
-                                if eTime == 'end' and myTime == 'end' and tileIndex > otherTileIndex:
-                                    go = False
-                                    print("NOT GO!!!!!!!!!!!!!!!!")
+                myIndex = PosIndex(i[0], plID, self.pos, tilesUsed)[0]
+                print(myIndex, "MY INDEX",  tUs[0][plID], "THE TILE")
+                if myIndex != -1:
+                    print(tUs[0][plID][myIndex], "MY TILE")
+                    myTime = tUs[0][plID][myIndex][2][1]
+                    if len(self.orders) > 1:
+                        if pl != -1 or myTime != 'end':
+                            for otherTileIndex,unit in enumerate(tUs[0][plID]):
+                                if unit[0] != self.pos:
+                                    sTime, eTime = unit[2]
+                                    print("MY TIME", time, "ITS TIME", sTime, eTime)
+                                    print(unit[0], self.pos)
+                                    if eTime == 'end' and myTime == 'end' and tileIndex > otherTileIndex:
+                                        go = False
+                                        print("NOT GO!!!!!!!!!!!!!!!!")
 
-                    else:
-                        go = False
-                        print("NOT GO NO PLAYER!!!!!!!!!!!!!!!!!!")
+                        else:
+                            go = False
+                            print("NOT GO NO PLAYER!!!!!!!!!!!!!!!!!!")
+                else: go = False
 
                 #GOIN' OR NOT
                 if go: self.nowPos = [x,y]
-                else: tilesUsed, ordersToDel, moveUnits = self.BackOff(plID, i, index, tilesUsed,)
+                else: tilesUsed, ordersToDel, moveUnits = self.BackOff(plID, i, index, tilesUsed, players, ordersToDel, moveUnits)
 
 
 
