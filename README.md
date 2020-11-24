@@ -1,5 +1,5 @@
 # Source_of_Power
-Simple tabletop style turn-based strategy game. (**!Heavy WIP!**)
+Simple tabletop style turn-based strategy game. (not finished)
 
 (AI does not exist yet so you'll have to play local multiplayer with other humans or with yourself)
 
